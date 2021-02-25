@@ -350,6 +350,8 @@ else:
 
 USER_TASKS_ARTIFACT_STORAGE = COURSE_IMPORT_EXPORT_STORAGE
 
+COURSE_METADATA_EXPORT_STORAGE = 'cms.djangoapps.export_course_metadata.storage.CourseMetadataExportS3Storage'
+
 DATABASES = AUTH_TOKENS['DATABASES']
 
 # The normal database user does not have enough permissions to run migrations.
