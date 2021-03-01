@@ -11,13 +11,11 @@ import logging
 from datetime import datetime
 from functools import reduce
 
-import six
 from django.contrib.auth import get_user_model
 from lxml import etree
 from opaque_keys.edx.keys import UsageKey
 from pkg_resources import resource_string
 from pytz import UTC
-from six import text_type
 from web_fragments.fragment import Fragment
 from xblock.completable import XBlockCompletionMode
 from xblock.core import XBlock
@@ -52,12 +50,12 @@ _ = lambda text: text
 
 TIMED_EXAM_GATING_WAFFLE_FLAG = LegacyWaffleFlag(
     waffle_namespace="xmodule",
-    flag_name=u'rev_1377_rollout',
+    flag_name='rev_1377_rollout',
     module_name=__name__,
 )
 
 
-class SequenceFields(object):  # lint-amnesty, pylint: disable=missing-class-docstring
+class SequenceFields:  # lint-amnesty, pylint: disable=missing-class-docstring
     has_children = True
     completion_mode = XBlockCompletionMode.AGGREGATOR
 
@@ -91,7 +89,7 @@ class SequenceFields(object):  # lint-amnesty, pylint: disable=missing-class-doc
     )
 
 
-class ProctoringFields(object):
+class ProctoringFields:
     """
     Fields that are specific to Proctored or Timed Exams
     """
@@ -205,7 +203,7 @@ class SequenceModule(SequenceFields, ProctoringFields, XModule):
     js_module_name = "Sequence"
 
     def __init__(self, *args, **kwargs):
-        super(SequenceModule, self).__init__(*args, **kwargs)  # lint-amnesty, pylint: disable=super-with-arguments
+        super().__init__(*args, **kwargs)
 
         self.gated_sequence_paywall = None
         # If position is specified in system, then use that instead.
@@ -229,7 +227,7 @@ class SequenceModule(SequenceFields, ProctoringFields, XModule):
         if dispatch == 'goto_position':
             # set position to default value if either 'position' argument not
             # found in request or it is a non-positive integer
-            position = data.get('position', u'1')
+            position = data.get('position', '1')
             if position.isdigit() and int(position) > 0:
                 self.position = int(position)
             else:
@@ -427,7 +425,7 @@ class SequenceModule(SequenceFields, ProctoringFields, XModule):
         params = {
             'items': items,
             'element_id': self.location.html_id(),
-            'item_id': text_type(self.location),
+            'item_id': str(self.location),
             'is_time_limited': self.is_time_limited,
             'position': self.position,
             'tag': self.location.block_type,
@@ -651,7 +649,7 @@ class SequenceModule(SequenceFields, ProctoringFields, XModule):
                 'content': content,
                 'page_title': getattr(item, 'tooltip_title', ''),
                 'type': item_type,
-                'id': text_type(usage_id),
+                'id': str(usage_id),
                 'bookmarked': is_bookmarked,
                 'path': " > ".join(display_names + [item.display_name_with_default]),
                 'graded': item.graded,
@@ -692,7 +690,7 @@ class SequenceModule(SequenceFields, ProctoringFields, XModule):
         """
         if not newrelic:
             return
-        newrelic.agent.add_custom_parameter('seq.block_id', six.text_type(self.location))
+        newrelic.agent.add_custom_parameter('seq.block_id', str(self.location))
         newrelic.agent.add_custom_parameter('seq.display_name', self.display_name or '')
         newrelic.agent.add_custom_parameter('seq.position', self.position)
         newrelic.agent.add_custom_parameter('seq.is_time_limited', self.is_time_limited)
@@ -717,7 +715,7 @@ class SequenceModule(SequenceFields, ProctoringFields, XModule):
         # Count of all modules by block_type (e.g. "video": 2, "discussion": 4)
         block_counts = collections.Counter(usage_key.block_type for usage_key in all_item_keys)
         for block_type, count in block_counts.items():
-            newrelic.agent.add_custom_parameter('seq.block_counts.{}'.format(block_type), count)
+            newrelic.agent.add_custom_parameter(f'seq.block_counts.{block_type}', count)
 
     def _capture_current_unit_metrics(self, display_items):
         """
@@ -731,7 +729,7 @@ class SequenceModule(SequenceFields, ProctoringFields, XModule):
         if 1 <= self.position <= len(display_items):
             # Basic info about the Unit...
             current = display_items[self.position - 1]
-            newrelic.agent.add_custom_parameter('seq.current.block_id', six.text_type(current.location))
+            newrelic.agent.add_custom_parameter('seq.current.block_id', str(current.location))
             newrelic.agent.add_custom_parameter('seq.current.display_name', current.display_name or '')
 
             # Examining all items inside the Unit (or split_test, conditional, etc.)
@@ -739,7 +737,7 @@ class SequenceModule(SequenceFields, ProctoringFields, XModule):
             newrelic.agent.add_custom_parameter('seq.current.num_items', len(child_locs))
             curr_block_counts = collections.Counter(usage_key.block_type for usage_key in child_locs)
             for block_type, count in curr_block_counts.items():
-                newrelic.agent.add_custom_parameter('seq.current.block_counts.{}'.format(block_type), count)
+                newrelic.agent.add_custom_parameter(f'seq.current.block_counts.{block_type}', count)
 
     def _time_limited_student_view(self):
         """
@@ -815,8 +813,8 @@ class SequenceModule(SequenceFields, ProctoringFields, XModule):
         return view_html
 
     def get_icon_class(self):
-        child_classes = set(child.get_icon_class()
-                            for child in self.get_children())
+        child_classes = {child.get_icon_class()
+                         for child in self.get_children()}
         new_class = 'other'
         for c in class_priority:
             if c in child_classes:
@@ -839,7 +837,7 @@ class SequenceMixin(SequenceFields):
             except Exception as e:  # lint-amnesty, pylint: disable=broad-except
                 log.exception("Unable to load child when parsing Sequence. Continuing...")
                 if system.error_tracker is not None:
-                    system.error_tracker(u"ERROR: {0}".format(e))
+                    system.error_tracker(f"ERROR: {e}")
                 continue
         return {}, children
 
@@ -850,7 +848,7 @@ class SequenceMixin(SequenceFields):
         # return key/value fields in a Python dict object
         # values may be numeric / string or dict
         # default implementation is an empty dict
-        xblock_body = super(SequenceMixin, self).index_dictionary()  # lint-amnesty, pylint: disable=super-with-arguments
+        xblock_body = super().index_dictionary()
         html_body = {
             "display_name": self.display_name,
         }
@@ -890,12 +888,12 @@ class SequenceDescriptor(SequenceMixin, ProctoringFields, MakoModuleDescriptor, 
         """
         `is_entrance_exam` should not be editable in the Studio settings editor.
         """
-        non_editable_fields = super(SequenceDescriptor, self).non_editable_metadata_fields  # lint-amnesty, pylint: disable=super-with-arguments
+        non_editable_fields = super().non_editable_metadata_fields
         non_editable_fields.append(self.fields['is_entrance_exam'])  # pylint:disable=unsubscriptable-object
         return non_editable_fields
 
 
-class HighlightsFields(object):
+class HighlightsFields:
     """Only Sections have summaries now, but we may expand that later."""
     highlights = List(
         help=_("A list summarizing what students should look forward to in this section."),
