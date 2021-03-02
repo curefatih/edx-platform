@@ -457,7 +457,7 @@ class CourseEntitlement(TimeStampedModel):
         """
         if not self.order_number:
             self.order_number = None
-        super(CourseEntitlement, self).save(*args, **kwargs)
+        super().save(*args, **kwargs)
 
 
 @python_2_unicode_compatible
