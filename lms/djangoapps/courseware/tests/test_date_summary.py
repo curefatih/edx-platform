@@ -61,10 +61,6 @@ class CourseDateSummaryTest(SharedModuleStoreTestCase):
     """Tests for course date summary blocks."""
     MODULESTORE = TEST_DATA_SPLIT_MODULESTORE
 
-    def setUp(self):
-        super(CourseDateSummaryTest, self).setUp()  # lint-amnesty, pylint: disable=super-with-arguments
-        SelfPacedConfiguration.objects.create(enable_course_home_improvements=True)
-
     def make_request(self, user):
         """ Creates a request """
         request = RequestFactory().request()
