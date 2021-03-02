@@ -4,46 +4,108 @@ Helper functions for logic related to learning (courseare & course home) URLs.
 Centralizdd in openedx/features/course_experience instead of lms/djangoapps/courseware
 because the Studio course outline may need these utilities.
 """
-import six
 from django.conf import settings
 from django.urls import reverse
 from six.moves.urllib.parse import urlencode
 
+from lms.djangoapps.courseware.toggles import courseware_mfe_is_active
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.search import navigation_index, path_to_location
 
 
-def get_legacy_courseware_url(course_key, usage_key, request=None):
+def get_courseware_url(usage_key, request=None):
     """
-    Return a str with the URL for the specified legacy (LMS-rendered) coursweare content.
+    Return the URL to the canonical learning experience for a given block.
 
-    Args:
-        course_id(str): Course Id string
-        usage_key(str): The location id of course component
+    We choose between either the Legacy or Learning MFE depending on the
+    course that the block is in, the requesting user, and the state of
+    the 'courseware' waffle flags.
 
     Raises:
-        ItemNotFoundError if no data at the location or NoPathToItem if location not in any class
+        * ItemNotFoundError if no data at the usage_key.
+        * NoPathToItem if location not in any class.
+
+    Args:
+        usage_key (UsageKey|str)
+        request (Request)
+    """
+    (
+        course_key,
+        section_id,
+        sequence_id,
+        unit_id,
+        position,
+        final_target_id,
+    ) = path_to_location(modulestore(), usage_key, request)
+    if courseware_mfe_is_active(course_key):
+        return get_learning_mfe_courseware_url(
+            course_key,
+            sequence_id,
+            unit_id,
+        )
+    else:
+        return _get_legacy_courseware_url(
+            course_key,
+            section_id,
+            sequence_id,
+            position,
+            final_target_id,
+        )
+
+
+def get_legacy_courseware_url(course_key, usage_key, request=None):
+    """
+    TODO
+    """
+    (
+        course_key,
+        section_id,
+        sequence_id,
+        _unit_id,
+        position,
+        final_target_id,
+    ) = path_to_location(modulestore(), usage_key, request)
+    return _get_legacy_courseware_url(
+        course_key,
+        section_id,
+        sequence_id,
+        position,
+        final_target_id,
+    )
+
+
+def _get_legacy_courseware_url(
+        course_key,
+        section_id,
+        sequence_id,
+        position,
+        final_target_id,
+):
+    """
+    Return a str with the URL for the specified legacy (LMS-rendered) courseware content.
+
+    Args:
+        course_key (CourseKey|str)
+        section_id (str)
+        sequence_id (str)
+        position (str)
+        final_target_id
 
     Returns:
         Redirect url string
     """
-
-    (
-        course_key, chapter, section, vertical_unused,
-        position, final_target_id
-    ) = path_to_location(modulestore(), usage_key, request)
-
     # choose the appropriate view (and provide the necessary args) based on the
     # args provided by the redirect.
     # Rely on index to do all error handling and access control.
-    if chapter is None:
-        redirect_url = reverse('courseware', args=(six.text_type(course_key), ))
-    elif section is None:
-        redirect_url = reverse('courseware_chapter', args=(six.text_type(course_key), chapter))
-    elif position is None:
+    course_id = str(course_key)
+    if not section_id:
+        redirect_url = reverse('courseware', args=(course_id, ))
+    elif not sequence_id:
+        redirect_url = reverse('courseware_chapter', args=(course_id, section_id))
+    elif not position:
         redirect_url = reverse(
             'courseware_section',
-            args=(six.text_type(course_key), chapter, section)
+            args=(course_id, section_id, sequence_id),
         )
     else:
         # Here we use the navigation_index from the position returned from
@@ -51,15 +113,15 @@ def get_legacy_courseware_url(course_key, usage_key, request=None):
         # moment
         redirect_url = reverse(
             'courseware_position',
-            args=(six.text_type(course_key), chapter, section, navigation_index(position))
+            args=(course_id, section_id, sequence_id, navigation_index(position))
         )
-    redirect_url += "?{}".format(urlencode({'activate_block_id': six.text_type(final_target_id)}))
+    redirect_url += "?{}".format(urlencode({'activate_block_id': str(final_target_id)}))
     return redirect_url
 
 
-def get_learning_mfe_courseware_url(course_key, sequence_key=None, unit_key=None):
+def get_learning_mfe_courseware_url(course_key, sequence_id=None, unit_id=None):
     """
-    Return a str with the URL for the specified coursweare content in the Learning MFE.
+    Return a str with the URL for the specified courseware content in the Learning MFE.
 
     The micro-frontend determines the user's position in the vertical via
     a separate API call, so all we need here is the course_key, section, and
@@ -82,13 +144,10 @@ def get_learning_mfe_courseware_url(course_key, sequence_key=None, unit_key=None
     strings. They're only ever used to concatenate a URL string.
     """
     mfe_link = '{}/course/{}'.format(settings.LEARNING_MICROFRONTEND_URL, course_key)
-
-    if sequence_key:
-        mfe_link += '/{}'.format(sequence_key)
-
-        if unit_key:
-            mfe_link += '/{}'.format(unit_key)
-
+    if sequence_id:
+        mfe_link += '/{}'.format(sequence_id)
+        if unit_id:
+            mfe_link += '/{}'.format(unit_id)
     return mfe_link
 
 
