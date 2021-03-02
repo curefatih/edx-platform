@@ -754,6 +754,7 @@ class StaticTabTestCase(TabTestCase):
         self.check_can_display_results(tab)
         self.check_get_and_set_method_for_key(tab, 'url_slug')
 
+
 class DiscussionLinkTestCase(TabTestCase):
     """Test cases for discussion link tab."""
 
