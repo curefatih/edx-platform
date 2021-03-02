@@ -490,7 +490,7 @@ class TestMixedModuleStore(CommonMixedModuleStoreSetup):
 
         items = self.store.get_items(course_key)
         # Check items found are either course or about type
-        assert {'course', 'about'}.issubset({item.location.block_type for item in items})  # pylint: disable=consider-using-set-comprehension, line-too-long
+        assert {'course', 'about'}.issubset({item.location.block_type for item in items})  # pylint: disable=line-too-long
         # Assert that about is a detached category found in get_items
         assert [item.location.block_type for item in items if item.location.block_type == 'about'][0]\
                in DETACHED_XBLOCK_TYPES
